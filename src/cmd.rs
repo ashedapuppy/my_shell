@@ -27,7 +27,7 @@ pub fn cd(command: &ShellCommand, path: &mut PathBuf, previous_command: &mut Opt
     let new_path = PathBuf::from(new_dir);
     match env::set_current_dir(&new_path) {
         Err(_) => {
-            eprintln!("could not open directory '{:?}'", path);
+            eprintln!("could not open directory '{:?}'", new_path);
             return ControlFlow::Break(())
         }
         Ok(_) => *path = new_path
