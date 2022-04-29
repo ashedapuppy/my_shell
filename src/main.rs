@@ -1,5 +1,5 @@
+use std::ops::ControlFlow;
 use std::path::PathBuf;
-use std::process::{Command, Stdio, Child};
 use std::env;
 
 use clap::Parser;
@@ -7,6 +7,7 @@ use color_eyre::eyre::Result;
 use rustyline::Editor;
 
 mod readln;
+mod cmd;
 
 // rust shell implementation
 #[derive(Parser, Debug)]
@@ -31,6 +32,26 @@ fn build_prompt(path: &PathBuf, prompt: &str) -> String {
     full_prompt
 }
 
+#[derive(Default)]
+pub struct ShellCommand {
+    name: String,
+    arguments: Vec<String>,
+}
+
+impl ShellCommand {
+    fn new(name: String) -> Self { 
+        let mut parts = name.trim().split_whitespace();
+        let command = parts.next().unwrap().to_string();
+        let args: Vec<String> = parts.map(|s| s.to_string()).collect();
+        Self { 
+            name: command,
+            arguments: args,
+        } 
+    }
+}
+
+
+
 fn main() -> Result<()>{
     color_eyre::install()?;
 
@@ -44,62 +65,25 @@ fn main() -> Result<()>{
     loop {
         let prompt = build_prompt(&path, &args.prompt);
         let input = readln::input(&mut rl, &prompt)?;
-        let mut commands = input.trim().split(" | ").peekable();
+        let commands: Vec<ShellCommand> = input
+            .trim()
+            .split(" | ")
+            .map(|s| ShellCommand::new(s.to_string()))
+            .collect();
         let mut previous_command = None;
-
-        while let Some(command) = commands.next()  {
-
-            let mut parts = command.trim().split_whitespace();
-            let command = parts.next().unwrap();
-            let args = parts;
-
-            match command {
+        let mut cmd_iter = commands.iter().peekable();
+        while let Some(command) = cmd_iter.next() {
+            match command.name.as_str() {
                 "exit" => return Ok(()),
 
                 "cd" => {
-                    let new_dir = args
-                        .peekable()
-                        .peek()
-                        .map_or("/", |x| *x);
-                    let new_path = PathBuf::from(new_dir);
-                    match env::set_current_dir(&new_path) {
-                        Err(_) => {
-                            eprintln!("could not open directory '{:?}'", path);
-                            continue
-                        }
-                        Ok(_) => path = new_path
-                    };
-                    previous_command = None;
+                    if let ControlFlow::Break(_) = cmd::cd(command, &mut path, &mut previous_command) {
+                        continue;
+                    }
                 },
 
-                command => {
-                    let stdin = previous_command
-                        .map_or(
-                            Stdio::inherit(),
-                            |output: Child| Stdio::from(output.stdout.unwrap())
-                        );
-
-                    let stdout = if commands.peek().is_some() {
-                        Stdio::piped()
-                    } else {
-                        Stdio::inherit()
-                    };
-
-                    let output = Command::new(command)
-                        .args(args)
-                        .stdin(stdin)
-                        .stdout(stdout)
-                        .spawn();
-
-                    match output {
-                        Ok(output) => { 
-                            previous_command = Some(output); 
-                        },
-                        Err(e) => {
-                            previous_command = None;
-                            eprintln!("{}", e);
-                        },
-                    };
+                _ => {
+                    previous_command = cmd::execute(previous_command, &mut cmd_iter, command);
                 }
             }
         }
@@ -110,3 +94,4 @@ fn main() -> Result<()>{
         println!();
     }
 }
+
