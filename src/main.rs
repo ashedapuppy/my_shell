@@ -32,26 +32,6 @@ fn build_prompt(path: &PathBuf, prompt: &str) -> String {
     full_prompt
 }
 
-#[derive(Default)]
-pub struct ShellCommand {
-    name: String,
-    arguments: Vec<String>,
-}
-
-impl ShellCommand {
-    fn new(name: String) -> Self { 
-        let mut parts = name.trim().split_whitespace();
-        let command = parts.next().unwrap().to_string();
-        let args: Vec<String> = parts.map(|s| s.to_string()).collect();
-        Self { 
-            name: command,
-            arguments: args,
-        } 
-    }
-}
-
-
-
 fn main() -> Result<()>{
     color_eyre::install()?;
 
@@ -65,10 +45,10 @@ fn main() -> Result<()>{
     loop {
         let prompt = build_prompt(&path, &args.prompt);
         let input = readln::input(&mut rl, &prompt)?;
-        let commands: Vec<ShellCommand> = input
+        let commands: Vec<cmd::ShellCommand> = input
             .trim()
             .split(" | ")
-            .map(|s| ShellCommand::new(s.to_string()))
+            .map(|s| cmd::ShellCommand::new(s.to_string()))
             .collect();
         let mut previous_command = None;
         let mut cmd_iter = commands.iter().peekable();
