@@ -1,6 +1,22 @@
 use std::{path::PathBuf, ops::ControlFlow, process::{Child, Stdio, Command}, env};
 
-use crate::ShellCommand;
+#[derive(Default)]
+pub struct ShellCommand {
+    pub name: String,
+    pub arguments: Vec<String>,
+}
+
+impl ShellCommand {
+    pub fn new(name: String) -> Self { 
+        let mut parts = name.trim().split_whitespace();
+        let command = parts.next().unwrap().to_string();
+        let args: Vec<String> = parts.map(|s| s.to_string()).collect();
+        Self { 
+            name: command,
+            arguments: args,
+        } 
+    }
+}
 
 pub fn cd(command: &ShellCommand, path: &mut PathBuf, previous_command: &mut Option<Child>) -> ControlFlow<()> {
     let new_dir = command.arguments
