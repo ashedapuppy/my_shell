@@ -35,16 +35,25 @@ fn build_prompt(path: &PathBuf, prompt: &str) -> String {
 fn main() -> Result<()>{
     color_eyre::install()?;
 
+    // parse command line arguments
+    let args = Arguments::parse();
+
+    // initialise the terminal input with rustyline completion
     let mut rl: Editor<readln::DIYHinter> = Editor::new();
     rl.set_helper(Some(readln::DIYHinter { hints: readln::diy_hints() }));
 
-    let args = Arguments::parse();
-    let mut path = args.path;
+    // set the path variable used in the rest of the program
+    let mut path = args.path.clone();
     env::set_current_dir(&path)?;
 
+    shell_loop(&mut path, &args, &mut rl)?;
+    Ok(())
+}
+
+fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYHinter>) -> Result<(), color_eyre::Report> {
     loop {
-        let prompt = build_prompt(&path, &args.prompt);
-        let input = readln::input(&mut rl, &prompt)?;
+        let prompt = build_prompt(path, &args.prompt);
+        let input = readln::input(rl, &prompt)?;
         let commands: Vec<cmd::ShellCommand> = input
             .trim()
             .split(" | ")
@@ -57,8 +66,9 @@ fn main() -> Result<()>{
                 "exit" => return Ok(()),
 
                 "cd" => {
-                    if let ControlFlow::Break(_) = cmd::cd(command, &mut path, &mut previous_command) {
-                        continue;
+                    // break out of the loop if the cd command fails, preventing following commands
+                    if let ControlFlow::Break(_) = cmd::cd(command, path, &mut previous_command) {
+                        break;
                     }
                 },
 
@@ -67,7 +77,6 @@ fn main() -> Result<()>{
                 }
             }
         }
-
         if let Some(mut final_command) = previous_command {
             final_command.wait()?;
         }
