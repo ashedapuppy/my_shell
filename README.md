@@ -1,4 +1,4 @@
-# rust template repository
+# implementation of a simple shell in rust
 [![build](https://github.com/sudosmile/rust-template/actions/workflows/build.yml/badge.svg)](https://github.com/sudosmile/rust-template/actions/workflows/build.yml)
 
 ## installation:
