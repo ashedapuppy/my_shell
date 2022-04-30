@@ -32,25 +32,7 @@ fn build_prompt(path: &PathBuf, prompt: &str) -> String {
     full_prompt
 }
 
-fn main() -> Result<()>{
-    color_eyre::install()?;
-
-    // parse command line arguments
-    let args = Arguments::parse();
-
-    // initialise the terminal input with rustyline completion
-    let mut rl: Editor<readln::DIYHinter> = Editor::new();
-    rl.set_helper(Some(readln::DIYHinter { hints: readln::diy_hints() }));
-
-    // set the path variable used in the rest of the program
-    let mut path = args.path.clone();
-    env::set_current_dir(&path)?;
-
-    shell_loop(&mut path, &args, &mut rl)?;
-    Ok(())
-}
-
-fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYHinter>) -> Result<(), color_eyre::Report> {
+fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYHinter>) -> Result<()> {
     loop {
         let prompt = build_prompt(path, &args.prompt);
         let input = readln::input(rl, &prompt)?;
@@ -84,3 +66,20 @@ fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYH
     }
 }
 
+fn main() -> Result<()>{
+    color_eyre::install()?;
+
+    // parse command line arguments
+    let args = Arguments::parse();
+
+    // initialise the terminal input with rustyline completion
+    let mut rl: Editor<readln::DIYHinter> = Editor::new();
+    rl.set_helper(Some(readln::DIYHinter { hints: readln::diy_hints() }));
+
+    // set the path variable used in the rest of the program
+    let mut path = args.path.clone();
+    env::set_current_dir(&path)?;
+
+    shell_loop(&mut path, &args, &mut rl)?;
+    Ok(())
+}
