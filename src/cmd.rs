@@ -1,4 +1,9 @@
-use std::{path::PathBuf, ops::ControlFlow, process::{Child, Stdio, Command}, env};
+use std::{
+    env,
+    ops::ControlFlow,
+    path::PathBuf,
+    process::{Child, Command, Stdio},
+};
 
 #[derive(Default)]
 pub struct ShellCommand {
@@ -7,36 +12,76 @@ pub struct ShellCommand {
 }
 
 impl ShellCommand {
-    pub fn new(name: String) -> Self { 
+    /// Taking a string and splitting it into a command and its arguments.
+    pub fn new(name: String) -> Self {
         let mut parts = name.trim().split_whitespace();
         let command = parts.next().unwrap().to_string();
         let args: Vec<String> = parts.map(|s| s.to_string()).collect();
-        Self { 
+        Self {
             name: command,
             arguments: args,
-        } 
+        }
     }
 }
 
-pub fn cd(command: &ShellCommand, path: &mut PathBuf, previous_command: &mut Option<Child>) -> ControlFlow<()> {
-    let new_dir = command.arguments
+/// It takes a `ShellCommand` and a `PathBuf` and
+/// returns a `ControlFlow<()>`, to tell main whether to continue or break the loop
+///
+/// Arguments:
+///
+/// * `command`: The ShellCommand struct that contains the command and arguments.
+/// * `path`: The current working directory.
+/// * `previous_command`: This is the last command that was run. If the user presses the up arrow, we
+/// want to run the same command again.
+///
+/// Returns:
+///
+/// A ControlFlow<()>
+pub fn cd(
+    command: &ShellCommand,
+    path: &mut PathBuf,
+    previous_command: &mut Option<Child>,
+) -> ControlFlow<()> {
+    // This is a way to get the first argument of the command. If there are no arguments, it will
+    // return "/".
+    let new_dir = command
+        .arguments
         .iter()
         .peekable()
         .peek()
         .map_or("/", |x| *x);
+    // Creating a new path from the new directory.
     let new_path = PathBuf::from(new_dir);
+
+    // Setting the current directory to the new path.
     match env::set_current_dir(&new_path) {
         Err(_) => {
             eprintln!("could not open directory '{:?}'", new_path);
-            return ControlFlow::Break(())
+            return ControlFlow::Break(());
         }
-        Ok(_) => *path = new_path
+        Ok(_) => *path = new_path,
     };
     *previous_command = None;
     ControlFlow::Continue(())
 }
 
-pub fn execute(previous_command: Option<Child>, cmd_iter: &mut std::iter::Peekable<std::slice::Iter<ShellCommand>>, command: &ShellCommand) -> Option<Child> {
+/// It takes a previous command, an iterator over the remaining commands, and the current command, and
+/// returns a new command
+///
+/// Arguments:
+///
+/// * `previous_command`: The previous command in the pipeline.
+/// * `cmd_iter`: This is a mutable iterator over the commands that are left to execute.
+/// * `command`: The command to execute
+///
+/// Returns:
+///
+/// A child process
+pub fn execute(
+    previous_command: Option<Child>,
+    cmd_iter: &mut std::iter::Peekable<std::slice::Iter<ShellCommand>>,
+    command: &ShellCommand,
+) -> Option<Child> {
     let stdin = if let Some(child) = previous_command {
         Stdio::from(child.stdout.unwrap())
     } else {
@@ -53,12 +98,10 @@ pub fn execute(previous_command: Option<Child>, cmd_iter: &mut std::iter::Peekab
         .stdout(stdout)
         .spawn();
     match output {
-        Ok(output) => { 
-            return Some(output)
-        },
+        Ok(output) => Some(output),
         Err(e) => {
             eprintln!("{}", e);
-            return None
-        },
-    };
+            None
+        }
+    }
 }

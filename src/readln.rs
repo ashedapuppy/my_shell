@@ -1,15 +1,16 @@
-// for hints
-use std::{collections::HashSet, process};
-use rustyline::{hint::{Hint, Hinter}, Context, Editor, error::ReadlineError};
+use rustyline::{
+    error::ReadlineError,
+    hint::{Hint, Hinter},
+    Context, Editor,
+};
 use rustyline_derive::{Completer, Helper, Highlighter};
+use std::{collections::HashSet, process};
 
-// for validator
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::Result;
 
 #[derive(Completer, Helper, Highlighter)]
 pub struct DIYHinter {
-    // It's simple example of rustyline, for more efficient, please use ** radix trie **
     pub hints: HashSet<CommandHint>,
 }
 
@@ -73,14 +74,15 @@ impl Hinter for DIYHinter {
     }
 }
 
-// TODO: validate user input
 impl Validator for DIYHinter {
     fn validate(&self, ctx: &mut ValidationContext) -> Result<ValidationResult> {
+        // TODO: validate user input
         #[allow(unused_imports)]
         use ValidationResult::{Incomplete, Invalid, Valid};
 
         #[allow(unused_variables)]
         let input = ctx.input();
+        // // example usage:
         // let result = if !input.starts_with("SELECT") {
         //     Invalid(Some(" --< Expect: SELECT stmt".to_owned()))
         // } else if !input.ends_with(';') {
@@ -92,13 +94,32 @@ impl Validator for DIYHinter {
     }
 }
 
-// TODO: add more completion support
+/// `diy_hints` returns a `HashSet` of `CommandHint`s,
+/// these are all the command hints that will be available in the shell,
+///
+/// Returns:
+///
+/// A HashSet of CommandHints.
 pub fn diy_hints() -> HashSet<CommandHint> {
+    // TODO: add more completion support
     let mut set = HashSet::new();
     set.insert(CommandHint::new("exit", "exit"));
+    set.insert(CommandHint::new("cd", "cd"));
+    set.insert(CommandHint::new("ls", "ls"));
     set
 }
 
+/// It takes a mutable reference to an Editor<DIYHinter> and a string,
+/// and returns a Result<String> from user input
+///
+/// Arguments:
+///
+/// * `rl`: &mut Editor<DIYHinter>
+/// * `prompt`: The prompt to display to the user.
+///
+/// Returns:
+///
+/// A Result<String>
 pub fn input(rl: &mut Editor<DIYHinter>, prompt: &str) -> Result<String> {
     match rl.readline(prompt) {
         Ok(line) => {
@@ -115,7 +136,7 @@ pub fn input(rl: &mut Editor<DIYHinter>, prompt: &str) -> Result<String> {
         }
         Err(err) => {
             println!("Error: {:?}", err);
-            Err(err.into())
+            Err(err)
         }
     }
 }

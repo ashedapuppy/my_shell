@@ -1,13 +1,14 @@
-use std::ops::ControlFlow;
-use std::path::PathBuf;
 use std::env;
+use std::ops::ControlFlow;
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Parser;
 use color_eyre::eyre::Result;
 use rustyline::Editor;
 
-mod readln;
 mod cmd;
+mod readln;
 
 // rust shell implementation
 #[derive(Parser, Debug)]
@@ -22,20 +23,44 @@ struct Arguments {
     prompt: String,
 }
 
-fn build_prompt(path: &PathBuf, prompt: &str) -> String {
-    let new_path: PathBuf = path.clone();
-    let mut full_prompt = new_path
-        .into_os_string()
-        .into_string()
-        .unwrap();
+/// It takes a path and a prompt, and returns a string that is the path and the prompt concatenated
+/// together
+///
+/// Arguments:
+///
+/// * `path`: The current working directory.
+/// * `prompt`: The prompt to display to the user.
+///
+/// Returns:
+///
+/// A String
+fn build_prompt(path: &Path, prompt: &str) -> String {
+    let new_path: PathBuf = path.to_path_buf();
+    let mut full_prompt = new_path.into_os_string().into_string().unwrap();
     full_prompt.push_str(prompt);
     full_prompt
 }
 
-fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYHinter>) -> Result<()> {
+/// It reads a line of input, splits it into commands, and executes each command
+///
+/// Arguments:
+///
+/// * `path`: A mutable reference to a PathBuf struct. This is the current working directory.
+/// * `args`: The arguments passed to the program.
+/// * `rl`: &mut Editor<readln::DIYHinter>
+///
+/// Returns:
+///
+/// A Result<()>
+fn shell_loop(
+    path: &mut PathBuf,
+    args: &Arguments,
+    rl: &mut Editor<readln::DIYHinter>,
+) -> Result<()> {
     loop {
         let prompt = build_prompt(path, &args.prompt);
         let input = readln::input(rl, &prompt)?;
+        // Creating a vector of ShellCommand structs from the input string.
         let commands: Vec<cmd::ShellCommand> = input
             .trim()
             .split(" | ")
@@ -52,7 +77,7 @@ fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYH
                     if let ControlFlow::Break(_) = cmd::cd(command, path, &mut previous_command) {
                         break;
                     }
-                },
+                }
 
                 _ => {
                     previous_command = cmd::execute(previous_command, &mut cmd_iter, command);
@@ -66,15 +91,18 @@ fn shell_loop(path: &mut PathBuf, args: &Arguments, rl: &mut Editor<readln::DIYH
     }
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     color_eyre::install()?;
 
     // parse command line arguments
     let args = Arguments::parse();
 
-    // initialise the terminal input with rustyline completion
+    // initialise the terminal input with rustyline completion + validation
+    // (both to be completed)
     let mut rl: Editor<readln::DIYHinter> = Editor::new();
-    rl.set_helper(Some(readln::DIYHinter { hints: readln::diy_hints() }));
+    rl.set_helper(Some(readln::DIYHinter {
+        hints: readln::diy_hints(),
+    }));
 
     // set the path variable used in the rest of the program
     let mut path = args.path.clone();
