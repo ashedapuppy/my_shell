@@ -63,7 +63,7 @@ fn shell_loop(
         // Creating a vector of ShellCommand structs from the input string.
         let commands: Vec<cmd::ShellCommand> = input
             .trim()
-            .split(" | ")
+            .split("|")
             .map(|s| cmd::ShellCommand::new(s.to_string()))
             .collect();
         let mut previous_command = None;
