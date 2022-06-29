@@ -1,8 +1,8 @@
+use anyhow::{Result, Context};
 use std::{
-    env,
-    ops::ControlFlow,
+    fs,
     path::PathBuf,
-    process::{Child, Command, Stdio},
+    process::{Child, Command, Stdio}, env,
 };
 
 #[derive(Default)]
@@ -39,9 +39,8 @@ impl ShellCommand {
 /// A ControlFlow<()>
 pub fn cd(
     command: &ShellCommand,
-    path: &mut PathBuf,
     previous_command: &mut Option<Child>,
-) -> ControlFlow<()> {
+) -> Result<PathBuf> {
     // This is a way to get the first argument of the command. If there are no arguments, it will
     // return "/".
     let new_dir = command
@@ -51,18 +50,11 @@ pub fn cd(
         .peek()
         .map_or("/", |x| *x);
     // Creating a new path from the new directory.
-    let new_path = PathBuf::from(new_dir);
-
+    let new_path = fs::canonicalize(PathBuf::from(new_dir)).context("cd: failed to find directory")?;
     // Setting the current directory to the new path.
-    match env::set_current_dir(&new_path) {
-        Err(_) => {
-            eprintln!("could not open directory '{:?}'", new_path);
-            return ControlFlow::Break(());
-        }
-        Ok(_) => *path = new_path,
-    };
+    env::set_current_dir(&new_path).context("failed to set current dir variable")?;
     *previous_command = None;
-    ControlFlow::Continue(())
+    Ok(new_path)
 }
 
 /// It takes a previous command, an iterator over the remaining commands, and the current command, and

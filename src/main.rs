@@ -1,10 +1,9 @@
 use std::env;
-use std::ops::ControlFlow;
 use std::path::Path;
 use std::path::PathBuf;
 
+use anyhow::{Result, Context};
 use clap::Parser;
-use color_eyre::eyre::Result;
 use rustyline::Editor;
 
 mod cmd;
@@ -53,13 +52,13 @@ fn build_prompt(path: &Path, prompt: &str) -> String {
 ///
 /// A Result<()>
 fn shell_loop(
-    path: &mut PathBuf,
     args: &Arguments,
     rl: &mut Editor<readln::DIYHinter>,
 ) -> Result<()> {
     loop {
-        let prompt = build_prompt(path, &args.prompt);
-        let input = readln::input(rl, &prompt)?;
+        let path = env::current_dir()?;
+        let prompt = build_prompt(&path, &args.prompt);
+        let input = readln::input(rl, &prompt).context("failed to parse input")?;
         // Creating a vector of ShellCommand structs from the input string.
         let commands: Vec<cmd::ShellCommand> = input
             .trim()
@@ -74,7 +73,8 @@ fn shell_loop(
 
                 "cd" => {
                     // break out of the loop if the cd command fails, preventing following commands
-                    if let ControlFlow::Break(_) = cmd::cd(command, path, &mut previous_command) {
+                    if let Err(e) = cmd::cd(command, &mut previous_command) {
+                        eprintln!("{e}");
                         break;
                     }
                 }
@@ -92,8 +92,6 @@ fn shell_loop(
 }
 
 fn main() -> Result<()> {
-    color_eyre::install()?;
-
     // parse command line arguments
     let args = Arguments::parse();
 
@@ -105,9 +103,8 @@ fn main() -> Result<()> {
     }));
 
     // set the path variable used in the rest of the program
-    let mut path = args.path.clone();
-    env::set_current_dir(&path)?;
+    env::set_current_dir(&args.path).context("failed to initialise current dir")?;
 
-    shell_loop(&mut path, &args, &mut rl)?;
+    shell_loop(&args, &mut rl)?;
     Ok(())
 }

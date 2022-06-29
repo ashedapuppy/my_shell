@@ -101,7 +101,8 @@ impl Validator for DIYHinter {
 ///
 /// A HashSet of CommandHints.
 pub fn diy_hints() -> HashSet<CommandHint> {
-    // TODO: add more completion support
+    let path = std::env::var("PATH").unwrap();
+    // TODO: parse path and build completion from the found binaries
     let mut set = HashSet::new();
     set.insert(CommandHint::new("exit", "exit"));
     set.insert(CommandHint::new("cd", "cd"));
